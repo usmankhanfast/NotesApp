@@ -51,8 +51,12 @@ export default class RecordTable extends LightningElement {
         },
         {
             label: 'Created By',
-            fieldName: 'CreatedByName',
-            type: 'text'
+            fieldName: 'createdByUrl',
+            type: 'url',
+            typeAttributes: {
+                label: { fieldName: 'CreatedByName' },
+                target: '_self'
+            }
         }
     ];
 
@@ -76,7 +80,8 @@ export default class RecordTable extends LightningElement {
             this.accounts = result.map(note => ({
                 ...note,
                 recordUrl: '/' + note.Id,
-                relatedUrl: '/' + note.RelatedId
+                relatedUrl: '/' + note.RelatedId,
+                createdByUrl: '/' + note.CreatedById
             }));
         } catch (error) {
             this.accounts = [];
