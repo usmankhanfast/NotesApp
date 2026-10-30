@@ -39,7 +39,7 @@ export default class RecordTable extends LightningElement {
         {
             label: 'Created Date',
             fieldName: 'CreatedDate',
-            type: 'Date',
+            type: 'date',
             typeAttributes: {
                 year: 'numeric',
                 month: '2-digit',
