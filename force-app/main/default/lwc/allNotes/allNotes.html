@@ -1,0 +1,35 @@
+<template>
+    <lightning-card title="Notes" icon-name="standard:note">
+        <div class="slds-p-around_medium">
+            <lightning-input
+                type="search"
+                label="Search Notes"
+                placeholder="Search by Title..."
+                onchange={handleSearch}
+                value={searchKey}>
+            </lightning-input>
+        </div>
+
+        <template lwc:if={isLoading}>
+            <lightning-spinner
+                alternative-text="Loading notes"
+                size="medium">
+            </lightning-spinner>
+        </template>
+
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <lightning-datatable
+                key-field="Id"
+                data={accounts}
+                columns={columns}
+                hide-checkbox-column>
+            </lightning-datatable>
+
+            <template lwc:if={showNoRecords}>
+                <div class="slds-p-around_medium slds-text-align_center">
+                    No records found.
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
