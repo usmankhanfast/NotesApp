@@ -1,0 +1,152 @@
+<template>
+    <lightning-card
+        title="Note Sharing Configuration"
+        icon-name="standard:note">
+
+        <div class="slds-p-around_medium">
+
+            <p class="slds-m-bottom_medium">
+                Configure which users can share notes with one another.
+            </p>
+
+            <template lwc:if={isLoading}>
+                <lightning-spinner
+                    alternative-text="Loading configurations"
+                    size="medium">
+                </lightning-spinner>
+            </template>
+
+            <div class="table-container">
+
+                <table
+                    class="slds-table slds-table_cell-buffer
+                           slds-table_bordered slds-table_fixed-layout">
+
+                    <thead>
+                        <tr>
+                            <th scope="col">
+                                <div class="slds-truncate">Source User</div>
+                            </th>
+
+                            <th scope="col">
+                                <div class="slds-truncate">Sharing</div>
+                            </th>
+
+                            <th scope="col">
+                                <div class="slds-truncate">Target User</div>
+                            </th>
+
+                            <th scope="col">
+                                <div class="slds-truncate">Object</div>
+                            </th>
+
+                            <th scope="col">
+                                <div class="slds-truncate">Active</div>
+                            </th>
+
+                            <th scope="col">
+                                <div class="slds-truncate">Action</div>
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <template
+                            for:each={rows}
+                            for:item="row">
+                            <tr key={row.rowKey}>
+                                <td>
+                                    <lightning-combobox
+                                        label="Source User"
+                                        variant="label-hidden"
+                                        value={row.sourceUserId}
+                                        options={userOptions}
+                                        data-rowkey={row.rowKey}
+                                        data-field="sourceUserId"
+                                        onchange={handleFieldChange}
+                                        placeholder="Select user">
+                                    </lightning-combobox>
+                                </td>
+                                <td>
+                                    <lightning-combobox
+                                        label="Sharing Direction"
+                                        variant="label-hidden"
+                                        value={row.sharingDirection}
+                                        options={sharingOptions}
+                                        data-rowkey={row.rowKey}
+                                        data-field="sharingDirection"
+                                        onchange={handleFieldChange}
+                                        placeholder="Select sharing">
+                                    </lightning-combobox>
+                                </td>
+                                <td>
+                                    <lightning-combobox
+                                        label="Target User"
+                                        variant="label-hidden"
+                                        value={row.targetUserId}
+                                        options={userOptions}
+                                        data-rowkey={row.rowKey}
+                                        data-field="targetUserId"
+                                        onchange={handleFieldChange}
+                                        placeholder="Select user">
+                                    </lightning-combobox>
+                                </td>
+                                <td>
+                                    <lightning-combobox
+                                        label="Object"
+                                        variant="label-hidden"
+                                        value={row.objectName}
+                                        options={objectOptions}
+                                        data-rowkey={row.rowKey}
+                                        data-field="objectName"
+                                        onchange={handleFieldChange}
+                                        placeholder="Select object">
+                                    </lightning-combobox>
+                                </td>
+                                <td>
+                                    <lightning-input
+                                        type="checkbox"
+                                        label="Active"
+                                        variant="label-hidden"
+                                        checked={row.isActive}
+                                        data-rowkey={row.rowKey}
+                                        data-field="isActive"
+                                        onchange={handleFieldChange}>
+                                    </lightning-input>
+                                </td>
+                                <td>
+                                    <lightning-button-icon
+                                        icon-name="utility:add"
+                                        alternative-text="Add Row"
+                                        title="Add Row"
+                                        onclick={handleAddRow}
+                                        variant="border-filled">
+                                    </lightning-button-icon>
+                                    <lightning-button-icon
+                                        icon-name="utility:delete"
+                                        alternative-text="Remove row"
+                                        title="Remove row"
+                                        data-rowkey={row.rowKey}
+                                        onclick={handleRemoveRow}>
+                                    </lightning-button-icon>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="slds-m-top_medium
+                        slds-grid slds-grid_align-spread">
+
+                <lightning-button
+                    label="Save Configuration"
+                    variant="brand"
+                    icon-name="utility:save"
+                    onclick={handleSave}
+                    disabled={isLoading}>
+                </lightning-button>
+            </div>
+        </div>
+    </lightning-card>
+</template>
