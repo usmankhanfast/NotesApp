@@ -1,29 +1,61 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, wire } from 'lwc';
 import getActiveUsers from '@salesforce/apex/NoteSharingConfigController.getActiveUsers';
 import getRules from '@salesforce/apex/NoteSharingConfigController.getRules';
 import saveRules from '@salesforce/apex/NoteSharingConfigController.saveRules';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import NOTE_SHARING_RULE_OBJECT from '@salesforce/schema/Note_Sharing_Rule__c';
+import SHARING_DIRECTION_FIELD from '@salesforce/schema/Note_Sharing_Rule__c.Sharing_Direction__c';
+import OBJECT_NAME_FIELD from '@salesforce/schema/Note_Sharing_Rule__c.Object_Name__c';
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
 
 export default class NoteSharingConfig extends LightningElement {
     rows = [];
     userOptions = [];
+    sharingOptions = [];
+    objectOptions = [];
     isLoading = false;
 
     rowCounter = 0;
+    recordTypeId;
 
-    sharingOptions = [
-        { label: 'Both ways', value: 'Both' },
-        { label: 'Source → Target', value: 'Source to Target' },
-        { label: 'Target → Source', value: 'Target to Source' }
-    ];
-    objectOptions = [
-        { label: 'All Supported Objects', value: 'All Supported Objects' },
-        { label: 'Account', value: 'Account' },
-        { label: 'Opportunity', value: 'Opportunity' },
-        { label: 'Contact', value: 'Contact' },
-        { label: 'Lead', value: 'Lead' },
-        { label: 'Case', value: 'Case' }
-    ];
+    @wire(getObjectInfo, { objectApiName: NOTE_SHARING_RULE_OBJECT })
+    wiredObjectInfo({ data, error }) {
+        if (data) {
+            this.recordTypeId = data.defaultRecordTypeId;
+        } else if (error) {
+            console.error('Object Info Error:', error);
+        }
+    }
+
+    @wire(getPicklistValues, {
+        recordTypeId: '$recordTypeId',
+        fieldApiName: SHARING_DIRECTION_FIELD
+    })
+    wiredSharingValues({ data, error }) {
+        if (data) {
+            this.sharingOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+        } else if (error) {
+            console.error('Error loading sharing options:', error);
+        }
+    }
+
+    @wire(getPicklistValues, {
+        recordTypeId: '$recordTypeId',
+        fieldApiName: OBJECT_NAME_FIELD
+    })
+    wiredObjectValues({ data, error }) {
+        if (data) {
+            this.objectOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+        } else if (error) {
+            console.error('Error loading object options:', error);
+        }
+    }
 
     connectedCallback() {
         this.loadData();
@@ -155,7 +187,6 @@ export default class NoteSharingConfig extends LightningElement {
         this.isLoading = true;
 
         try {
-            // Send only fields that Apex needs.
             const payload = this.rows.map(row => ({
                 id: row.id || null,
                 sourceUserId: row.sourceUserId,
