@@ -1,5 +1,4 @@
 public with sharing class NoteSharingConfigController {
-
     private static void checkAdminPermission() {
         if (!FeatureManagement.checkPermission('Manage_Note_Sharing')) {
             throw new AuraHandledException(
@@ -20,7 +19,6 @@ public with sharing class NoteSharingConfigController {
     @AuraEnabled(cacheable=true)
     public static List<User> getActiveUsers() {
         //checkAdminPermission();
-
         return [
             SELECT Id, Name, Username
             FROM User
@@ -34,9 +32,7 @@ public with sharing class NoteSharingConfigController {
     @AuraEnabled(cacheable=true)
     public static List<RuleRow> getRules() {
         //checkAdminPermission();
-
         List<RuleRow> result = new List<RuleRow>();
-
         for (Note_Sharing_Rule__c record : [
             SELECT Id, Source_User__c, Target_User__c,
                    Sharing_Direction__c, Object_Name__c,
@@ -56,22 +52,18 @@ public with sharing class NoteSharingConfigController {
 
             result.add(row);
         }
-
         return result;
     }
 
     @AuraEnabled
     public static void saveRules(List<RuleRow> rows) {
         //checkAdminPermission();
-
         if (rows == null || rows.isEmpty()) {
             throw new AuraHandledException(
                 'Add at least one configuration before saving.'
             );
         }
-
         Set<Id> userIds = new Set<Id>();
-
         for (RuleRow row : rows) {
             if (row == null ||
                 row.sourceUserId == null ||
@@ -83,7 +75,6 @@ public with sharing class NoteSharingConfigController {
                     'Complete all fields before saving.'
                 );
             }
-
             if (row.sourceUserId == row.targetUserId) {
                 throw new AuraHandledException(
                     'Source User and Target User must be different.'
@@ -124,34 +115,26 @@ public with sharing class NoteSharingConfigController {
                 'Both users must exist and be active.'
             );
         }
-
         List<Note_Sharing_Rule__c> recordsToSave =
             new List<Note_Sharing_Rule__c>();
-
         Set<Id> existingRuleIds = new Set<Id>();
-
         for (RuleRow row : rows) {
-            Note_Sharing_Rule__c record =
-                new Note_Sharing_Rule__c();
-
+            Note_Sharing_Rule__c record = new Note_Sharing_Rule__c();
             if (row.id != null) {
                 existingRuleIds.add(row.id);
                 record.Id = row.id;
             }
-
             record.Source_User__c = row.sourceUserId;
             record.Target_User__c = row.targetUserId;
             record.Sharing_Direction__c = row.sharingDirection;
             record.Object_Name__c = row.objectName;
-            record.Is_Active__c =
-                row.isActive == null ? true : row.isActive;
+            record.Is_Active__c = row.isActive == null ? true : row.isActive;
 
             recordsToSave.add(record);
         }
 
         if (!existingRuleIds.isEmpty()) {
             Set<Id> accessibleRuleIds = new Set<Id>();
-
             for (Note_Sharing_Rule__c existing : [
                 SELECT Id
                 FROM Note_Sharing_Rule__c
@@ -167,7 +150,6 @@ public with sharing class NoteSharingConfigController {
                 );
             }
         }
-
         try {
             upsert as user recordsToSave;
         } catch (Exception e) {
