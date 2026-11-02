@@ -1,5 +1,6 @@
 import { LightningElement, wire } from 'lwc';
 import getActiveUsers from '@salesforce/apex/NoteSharingConfigController.getActiveUsers';
+import deleteRule from '@salesforce/apex/NoteSharingConfigController.deleteRule';
 import getRules from '@salesforce/apex/NoteSharingConfigController.getRules';
 import saveRules from '@salesforce/apex/NoteSharingConfigController.saveRules';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
@@ -7,6 +8,7 @@ import NOTE_SHARING_RULE_OBJECT from '@salesforce/schema/Note_Sharing_Rule__c';
 import SHARING_DIRECTION_FIELD from '@salesforce/schema/Note_Sharing_Rule__c.Sharing_Direction__c';
 import OBJECT_NAME_FIELD from '@salesforce/schema/Note_Sharing_Rule__c.Object_Name__c';
 import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import LightningConfirm from 'lightning/confirm';
 
 export default class NoteSharingConfig extends LightningElement {
     rows = [];
@@ -107,7 +109,7 @@ export default class NoteSharingConfig extends LightningElement {
             sourceUserId: '',
             targetUserId: '',
             sharingDirection: 'Source to Target',
-            objectName: 'All Supported Objects',
+            objectName: '',
             isActive: true
         };
     }
@@ -119,14 +121,43 @@ export default class NoteSharingConfig extends LightningElement {
         ];
     }
 
-    handleRemoveRow(event) {
+    async handleRemoveRow(event) {
         const rowKey = event.currentTarget.dataset.rowkey;
-        this.rows = this.rows.filter(
-            row => row.rowKey !== rowKey
-        );
-        if (this.rows.length === 0) {
-            this.rows = [this.createEmptyRow()];
+        const row = this.rows.find(item => item.rowKey === rowKey);
+        if (!row) {
+            console.log('Row not found:', rowKey);
+            return;
         }
+
+        try {
+            if (row.id) {
+                const confirmed = await this.confirmDelete();
+                if (!confirmed) {
+                    return;
+                }
+                await deleteRule({ ruleId: row.id });
+            }
+            this.rows = this.rows.filter(item => item.rowKey !== rowKey);
+            this.showToast(
+                'Success',
+                'Sharing rule deleted successfully.',
+                'success'
+            );
+        } catch (error) {
+            this.showToast(
+                'Error',
+                error.body?.message || 'Unable to delete sharing rule.',
+                'error'
+            );
+        }
+    }
+
+    async confirmDelete() {
+        return await LightningConfirm.open({
+            message: 'Are you sure you want to delete this sharing rule?',
+            variant: 'headerless',
+            label: 'Confirm Deletion'
+        });
     }
 
     handleFieldChange(event) {
@@ -149,41 +180,13 @@ export default class NoteSharingConfig extends LightningElement {
     }
 
     async handleSave() {
-        const inputs = [
-            ...this.template.querySelectorAll(
-                'lightning-combobox'
-            )
-        ];
-
-        const allValid = inputs.reduce((valid, input) => {
-            input.reportValidity();
-            return valid && input.checkValidity();
-        }, true);
-
-        if (!allValid) {
-            this.showToast(
-                'Missing Information',
-                'Complete all dropdown fields before saving.',
-                'warning'
-            );
+        const inputs = [...this.template.querySelectorAll('lightning-combobox')];
+        if (!this.validateRows()) {
             return;
         }
-
-        const hasInvalidRow = this.rows.some(row =>
-            !row.sourceUserId ||
-            !row.targetUserId ||
-            row.sourceUserId === row.targetUserId
-        );
-
-        if (hasInvalidRow) {
-            this.showToast(
-                'Invalid Configuration',
-                'Select different Source and Target users for every row.',
-                'error'
-            );
+        if (!this.validateDuplicateRows()) {
             return;
         }
-
         this.isLoading = true;
 
         try {
@@ -197,15 +200,12 @@ export default class NoteSharingConfig extends LightningElement {
             }));
 
             await saveRules({ rows: payload });
-
+            await this.loadData();
             this.showToast(
                 'Success',
                 'Note sharing configurations saved successfully.',
                 'success'
             );
-
-            await this.loadData();
-
         } catch (error) {
             this.showToast(
                 'Save Failed',
@@ -215,6 +215,62 @@ export default class NoteSharingConfig extends LightningElement {
         } finally {
             this.isLoading = false;
         }
+    }
+
+    validateRows() {
+        const emptySource = this.rows.some(row => !row.sourceUserId);
+        const emptyTarget = this.rows.some(row => !row.targetUserId);
+        const emptyObject = this.rows.some(row => !row.objectName);
+
+        const sameUsers = this.rows.some(row =>
+            row.sourceUserId &&
+            row.targetUserId &&
+            row.sourceUserId === row.targetUserId
+        );
+
+        if (emptySource) {
+            this.showToast('Error', 'Please fill in the Source User field.', 'error');
+            return false;
+        }
+
+        if (emptyTarget) {
+            this.showToast('Error', 'Please fill in the Target User field.', 'error');
+            return false;
+        }
+
+        if (emptyObject) {
+            this.showToast('Error', 'Please select an Object.', 'error');
+            return false;
+        }
+
+        if (sameUsers) {
+            this.showToast('Error', 'Source User and Target User cannot be the same.', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    validateDuplicateRows() {
+        const seen = new Set();
+        for (const row of this.rows) {
+            const key = [
+                row.sourceUserId,
+                row.targetUserId,
+                row.sharingDirection,
+                row.objectName
+            ].join('|');
+
+            if (seen.has(key)) {
+                this.showToast(
+                    'Duplicate Rule',
+                    'This sharing rule already exists. Please remove the duplicate on '+row.rowKey,
+                    'error'
+                );
+                return false;
+            }
+            seen.add(key);
+        }
+        return true;
     }
 
     getErrorMessage(error) {
