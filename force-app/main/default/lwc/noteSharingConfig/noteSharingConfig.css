@@ -1,0 +1,21 @@
+:host {
+    display: block;
+}
+
+.table-container {
+    width: 100%;
+    overflow: visible;
+}
+
+th {
+    background-color: #f3f3f3;
+    font-weight: 600;
+}
+
+td {
+    vertical-align: middle;
+}
+
+lightning-combobox {
+    min-width: 140px;
+}
