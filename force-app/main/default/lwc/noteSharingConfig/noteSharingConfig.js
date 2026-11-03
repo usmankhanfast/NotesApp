@@ -1,5 +1,6 @@
 import { LightningElement, wire } from 'lwc';
 import getActiveUsers from '@salesforce/apex/NoteSharingConfigController.getActiveUsers';
+import shareActiveNotes from '@salesforce/apex/NoteSharingService.shareActiveNotes';
 import deleteRule from '@salesforce/apex/NoteSharingConfigController.deleteRule';
 import getRules from '@salesforce/apex/NoteSharingConfigController.getRules';
 import saveRules from '@salesforce/apex/NoteSharingConfigController.saveRules';
@@ -271,6 +272,26 @@ export default class NoteSharingConfig extends LightningElement {
             seen.add(key);
         }
         return true;
+    }
+
+    async handleExecuteSharing() {
+        this.isLoading = true;
+        try {
+            const jobId = await shareActiveNotes();
+            this.showToast(
+                'Success',
+                'Note sharing batch started. Job ID: ' + jobId,
+                'success'
+            );
+        } catch (error) {
+            this.showToast(
+                'Error',
+                this.getErrorMessage(error),
+                'error'
+            );
+        } finally {
+            this.isLoading = false;
+        }
     }
 
     getErrorMessage(error) {
