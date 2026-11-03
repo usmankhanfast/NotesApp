@@ -67,37 +67,28 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         if (linkedIds.isEmpty()) {
         	return;
     	}
-        system.debug('Auth: '+this.authorIds);
-        system.debug('Recp: '+this.recipientIds);
         
         List<ContentDocumentLink> notesInfo = getNotesInfo(linkedIds, this.authorIds);
         if (notesInfo.isEmpty()) {
         	return;
     	}
-        for(ContentDocumentLink cdl: notesInfo) {
-            system.debug(cdl.ContentDocumentId + ' - '+cdl.LinkedEntityId);
-        }
-        system.debug('---After--');
+
         Set<String> existingUserLinks = getExistingUserLinks(notesInfo);
-        for(String cdl: existingUserLinks) {
-            system.debug('Dup: '+cdl);
-        }
-        system.debug('---After--');
         List<ContentDocumentLink> linksToInsert = getLinksToInsert(notesInfo, existingUserLinks);
-        system.debug(linksToInsert.size());
-            for(ContentDocumentLink cdl: linksToInsert) {
-                system.debug(cdl.ContentDocumentId + ' - '+ cdl.LinkedEntityId);
-            }
-        //insertLinkRecords(linksToInsert);
+        insertLinkRecords(linksToInsert);
     }
-    
+
     private List<ContentDocumentLink> getNotesInfo(Set<Id> linkedIds, Set<Id> authorIds) {
-        List<ContentDocumentLink> contentDocLinks = [
-            SELECT Id, ContentDocumentId, LinkedEntityId, ContentDocument.CreatedById
+        List<ContentDocumentLink> contentDocLinks = new List<ContentDocumentLink>();
+        for(ContentDocumentLink cdl: [SELECT Id, ContentDocumentId, LinkedEntityId, ContentDocument.CreatedById
             FROM ContentDocumentLink
             WHERE ContentDocument.CreatedById IN :authorIds
             AND (LinkedEntityId IN :linkedIds OR LinkedEntityId IN :recipientIds) 
-        ];
+        ]) {
+            if (cdl.LinkedEntityId.getSObjectType() == User.SObjectType) {
+                contentDocLinks.add(cdl);
+            }
+        }
         return contentDocLinks;
     }
 
@@ -105,23 +96,22 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         return String.valueOf(noteId) + '|' +
                String.valueOf(userId);
     }
-    
+
     private Set<String> getExistingUserLinks(List<ContentDocumentLink> notesInfo) {
         Set<String> existingUserLinks = new Set<String>();
         for (ContentDocumentLink cdl : notesInfo) {
             if (cdl.LinkedEntityId.getSObjectType() == User.SObjectType) {
-                system.debug('Key: '+ cdl.ContentDocumentId +'|'+cdl.LinkedEntityId);
                 existingUserLinks.add(makeKey(cdl.ContentDocumentId, cdl.LinkedEntityId));
             }
         }
         return existingUserLinks;
     }
-    
+
     private List<ContentDocumentLink> getLinksToInsert(List<ContentDocumentLink> notesInfo, Set<String> existingUserLinks) {
         List<ContentDocumentLink> linksToInsert = new List<ContentDocumentLink>();
-        for (ContentDocumentLink noteInfo : notesInfo) {            
+        for (ContentDocumentLink noteInfo : notesInfo) {
             Id noteId = noteInfo.ContentDocumentId;
-            Id noteCreatorId = noteInfo.ContentDocument.CreatedById;            
+            Id noteCreatorId = noteInfo.ContentDocument.CreatedById;
             if (!routesByAuthor.containsKey(noteCreatorId)) {
                 continue;
             }
@@ -129,16 +119,15 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         }
         return linksToInsert;
     }
-    
+
     private List<ContentDocumentLink> validateAndGetLinks(Id noteCreatorId, Id noteId, Set<String> existingUserLinks, List<ContentDocumentLink> linksToInsert) {
         Set<String> pendingLinks = new Set<String>();
         for (ShareRoute route : routesByAuthor.get(noteCreatorId)) {
             String key = makeKey(noteId, route.recipientId);
-            system.debug('Validate: '+ key);
             if (existingUserLinks.contains(key) || pendingLinks.contains(key)) {
                 skippedCount++;
                 continue;
-            }                
+            }
             linksToInsert.add(new ContentDocumentLink(
                 ContentDocumentId = noteId,
                 LinkedEntityId = route.recipientId,
@@ -149,15 +138,15 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         }
         return linksToInsert;
     }
-    
+
     private void insertLinkRecords(List<ContentDocumentLink> linksToInsert) {
         if (!linksToInsert.isEmpty()) {
             Database.SaveResult[] results = Database.insert(linksToInsert, false);
-            for (Database.SaveResult result : results) {                
+            for (Database.SaveResult result : results) {
                 if (result.isSuccess()) {
                     sharedCount++;
                 } else {
-                    failedCount++;                    
+                    failedCount++;
                     for (Database.Error err : result.getErrors()) {
                         System.debug(LoggingLevel.ERROR, 'Note sharing failed: ' + err.getMessage());
                     }
@@ -167,7 +156,6 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
     }
 
     public void finish(Database.BatchableContext bc) {
-
         System.debug('Note Sharing Batch Completed');
         System.debug('Successfully shared: ' + sharedCount);
         System.debug('Already shared/skipped: ' + skippedCount);
