@@ -10,19 +10,14 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Both</fullName>
+                <fullName>Share Both Ways</fullName>
                 <default>false</default>
-                <label>Both</label>
+                <label>Share Both Ways</label>
             </value>
             <value>
-                <fullName>Source to Target</fullName>
+                <fullName>Shares with</fullName>
                 <default>false</default>
-                <label>Source to Target</label>
-            </value>
-            <value>
-                <fullName>Target to Source</fullName>
-                <default>false</default>
-                <label>Target to Source</label>
+                <label>Shares with</label>
             </value>
         </valueSetDefinition>
     </valueSet>
