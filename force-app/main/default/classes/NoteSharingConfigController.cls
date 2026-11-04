@@ -1,4 +1,6 @@
 public with sharing class NoteSharingConfigController {
+    public static final String SHARES_WITH = 'Shares with';
+    public static final String SHARE_BOTH_WAYS = 'Share Both Ways';
     private static void checkAdminPermission() {
         if (!FeatureManagement.checkPermission('Manage_Note_Sharing')) {
             throw new AuraHandledException('You do not have permission to manage note sharing.');
@@ -71,7 +73,7 @@ public with sharing class NoteSharingConfigController {
             if (row.sourceUserId == row.targetUserId) {
                 throw new AuraHandledException('Source User and Target User must be different.');
             }
-            if (!new Set<String>{'Both', 'Source to Target', 'Target to Source'}.contains(row.sharingDirection)) {
+            if (!new Set<String>{SHARES_WITH, SHARE_BOTH_WAYS}.contains(row.sharingDirection)) {
                 throw new AuraHandledException('Invalid sharing direction.');
             }
             if (!new Set<String>{'Account', 'Opportunity','Contact', 'Lead', 'Case'}.contains(row.objectName)) {

@@ -1,6 +1,9 @@
 public without sharing class NoteSharingBatch implements Database.Batchable<SObject>, Database.Stateful {
     private List<Note_Sharing_Rule__c> rules;
     String objectName;
+    public static final String SHARES_WITH = 'Shares with';
+    public static final String SHARE_BOTH_WAYS = 'Share Both Ways';
+
     private Map<Id, List<ShareRoute>> routesByAuthor = new Map<Id, List<ShareRoute>>();
     private Set<Id> authorIds = new Set<Id>();
     private Set<Id> recipientIds = new Set<Id>();
@@ -34,9 +37,9 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
 
     private void buildSharingRoutes() {
         for (Note_Sharing_Rule__c rule : this.rules) {
-            if (rule.Sharing_Direction__c == 'Shares with') {
+            if (rule.Sharing_Direction__c == SHARES_WITH) {
                 addRoute(rule.Source_User__c, rule.Target_User__c, rule.Object_Name__c);
-            } else if(rule.Sharing_Direction__c == 'Share Vice Versa') {
+            } else if(rule.Sharing_Direction__c == SHARE_BOTH_WAYS) {
                 addRoute(rule.Source_User__c, rule.Target_User__c, rule.Object_Name__c);
                 addRoute(rule.Target_User__c, rule.Source_User__c, rule.Object_Name__c);
             }
