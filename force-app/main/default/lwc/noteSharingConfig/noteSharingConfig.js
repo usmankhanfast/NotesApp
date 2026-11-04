@@ -126,7 +126,6 @@ export default class NoteSharingConfig extends LightningElement {
         const rowKey = event.currentTarget.dataset.rowkey;
         const row = this.rows.find(item => item.rowKey === rowKey);
         if (!row) {
-            console.log('Row not found:', rowKey);
             return;
         }
 
@@ -186,6 +185,9 @@ export default class NoteSharingConfig extends LightningElement {
             return;
         }
         if (!this.validateDuplicateRows()) {
+            return;
+        }
+        if (!this.validateSharingDirection()) {
             return;
         }
         this.isLoading = true;
@@ -270,6 +272,42 @@ export default class NoteSharingConfig extends LightningElement {
                 return false;
             }
             seen.add(key);
+        }
+        return true;
+    }
+
+    validateSharingDirection() {
+        for (let i = 0; i < this.rows.length; i++) {
+            const current = this.rows[i];
+            for (let j = 0; j < this.rows.length; j++) {
+                if (i === j) {
+                    continue;
+                }
+                const existing = this.rows[j];
+                const sameUsers =
+                    current.sourceUserId === existing.sourceUserId &&
+                    current.targetUserId === existing.targetUserId;
+                const reverseUsers =
+                    current.sourceUserId === existing.targetUserId &&
+                    current.targetUserId === existing.sourceUserId;
+                const sameObject = current.objectName === existing.objectName;
+                const samePair = sameUsers || reverseUsers;
+                if (!samePair || !sameObject) {
+                    continue;
+                }
+
+                const hasBothWays =
+                    current.sharingDirection === 'Share Both Ways' ||
+                    existing.sharingDirection === 'Share Both Ways';
+                if (hasBothWays) {
+                    this.showToast(
+                        'Error',
+                        'A Share Both Ways rule already covers this user combination. You cannot add another sharing rule for the same users and object at rule '+(j+1),
+                        'error'
+                    );
+                    return false;
+                }
+            }
         }
         return true;
     }
