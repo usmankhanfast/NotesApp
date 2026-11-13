@@ -102,4 +102,8 @@ export default class RecordTable extends LightningElement {
     get showNoRecords() {
         return !this.isLoading && this.notes.length === 0;
     }
+
+    get cardTitle() {
+        return `Notes (${this.notes.length})`;
+    }
 }
