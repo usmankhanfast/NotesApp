@@ -6,3 +6,11 @@
 lightning-datatable {
     width: 100%;
 }
+
+.ctrl-items-bar {
+    padding-right: 15px;
+}
+
+.search-bar {
+    width: 250px;
+}

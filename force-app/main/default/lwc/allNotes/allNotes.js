@@ -1,9 +1,9 @@
 import { LightningElement } from 'lwc';
-import getAccounts from '@salesforce/apex/NotesController.getNotes';
+import getNotes from '@salesforce/apex/NotesController.getNotes';
 
 export default class RecordTable extends LightningElement {
 
-    accounts = [];
+    notes = [];
     searchKey = '';
     isLoading = false;
 
@@ -61,32 +61,36 @@ export default class RecordTable extends LightningElement {
     ];
 
     connectedCallback() {
-        this.loadAccounts();
+        this.loadNotes();
+    }
+
+    handleRefresh() {
+        this.loadNotes();
     }
 
     handleSearch(event) {
         this.searchKey = event.target.value;
-        this.loadAccounts();
+        this.loadNotes();
     }
 
-    async loadAccounts() {
+    async loadNotes() {
         this.isLoading = true;
 
         try {
-            const result = await getAccounts({
+            const result = await getNotes({
                 searchKey: this.searchKey
             });
 
-            this.accounts = result.map(note => ({
+            this.notes = result.map(note => ({
                 ...note,
                 recordUrl: '/' + note.Id,
                 relatedUrl: '/' + note.RelatedId,
                 createdByUrl: '/' + note.CreatedById
             }));
         } catch (error) {
-            this.accounts = [];
+            this.notes = [];
             console.error(
-                'Error loading accounts:',
+                'Error loading notes:',
                 error
             );
 
@@ -96,6 +100,6 @@ export default class RecordTable extends LightningElement {
     }
 
     get showNoRecords() {
-        return !this.isLoading && this.accounts.length === 0;
+        return !this.isLoading && this.notes.length === 0;
     }
 }
