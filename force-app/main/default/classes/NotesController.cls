@@ -1,9 +1,7 @@
 public class NotesController {
     @AuraEnabled(cacheable=true)
     public static List<NoteWrapper> getNotes(String searchKey) {
-        String searchTerm = '%' +
-            (searchKey == null ? '' : searchKey.trim()) +
-            '%';
+        String searchTerm = '%' + (searchKey == null ? '' : searchKey.trim()) +'%';
         List<ContentNote> notesRec = [
             SELECT Id, Title, TextPreview, CreatedDate, CreatedById, CreatedBy.Name
             FROM ContentNote
@@ -24,7 +22,7 @@ public class NotesController {
         for(ContentDocumentLink cdl: [SELECT Id, ContentDocumentId, LinkedEntityId, LinkedEntity.Name FROM ContentDocumentLink WHERE ContentDocumentId IN :noteMap.keySet()]) {
             String LinkedEntity = cdl.LinkedEntityId;
             if(!LinkedEntity.startsWith('005')) {
-                cdNoteMap.put(cdl.ContentDocumentId, cdl);
+                cdNoteMap.put(cdl.Id, cdl);
             }
         }
         return getNoteRecords(noteMap, cdNoteMap);
@@ -35,8 +33,9 @@ public class NotesController {
 		Map<Id, Id> linkMap = new Map<Id, Id>();
         Map<Id, String> typeMap = new Map<Id, String>();
         List<NoteWrapper> allNotes = new List<NoteWrapper>(); 
-        for(Id noteId: noteMap.keySet()) {
-            allNotes.add(getWrappedNotes(noteId, noteMap.get(noteId), cdNoteMap.get(noteId)));
+        for(Id cdId: cdNoteMap.keySet()) {
+            ContentDocumentLink cdl = cdNoteMap.get(cdId);
+            allNotes.add(getWrappedNotes(cdl.ContentDocumentId, noteMap.get(cdl.ContentDocumentId), cdNoteMap.get(cdl.Id)));
         }
         return allNotes;
     }
@@ -53,7 +52,7 @@ public class NotesController {
         wrap.RelatedId = cdl.LinkedEntityId;
         wrap.RelatedEntityName = getRelEntityName(cdl.LinkedEntityId);
         wrap.RelatedName = cdl.LinkedEntity.Name;
-        wrap.createdDate = cnRec.CreatedDate;
+        wrap.CreatedDate = cnRec.CreatedDate;
         wrap.CreatedByName = cnRec.CreatedBy.Name;
         wrap.CreatedById = cnRec.CreatedById;
         return wrap;
