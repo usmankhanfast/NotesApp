@@ -5,6 +5,8 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
     public static final String SHARE_BOTH_WAYS = 'Share Both Ways';
 
     private Map<Id, List<ShareRoute>> routesByAuthor = new Map<Id, List<ShareRoute>>();
+    private Map<String, List<Note_Sharing_Rule__c>> remainingRules = new Map<String, List<Note_Sharing_Rule__c>>();
+    private Map<Id, ContentDocumentLink> existingLinkMap = new Map<Id, ContentDocumentLink>();
     private Set<Id> authorIds = new Set<Id>();
     private Set<Id> recipientIds = new Set<Id>();
     
@@ -29,9 +31,14 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         }
     }
 
-    public NoteSharingBatch(List<Note_Sharing_Rule__c> rules, String objectName) {
-        this.rules = rules;
-        this.objectName = objectName; 
+    public NoteSharingBatch(Map<String, List<Note_Sharing_Rule__c>> allRules, String objectName) {
+        this.rules = allRules.get(objectName);
+        this.objectName = objectName;
+        for (String name : allRules.keySet()) {
+            if (name != objectName) {
+                remainingRules.put(name, allRules.get(name));
+            }
+        }
         buildSharingRoutes();
     }
 
@@ -70,51 +77,51 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         if (linkedIds.isEmpty()) {
         	return;
     	}
-        
-        List<ContentDocumentLink> notesInfo = getNotesInfo(linkedIds, this.authorIds);
+        Map<Id, ContentDocumentLink> notesInfo = getNotesInfo(linkedIds, this.authorIds);
         if (notesInfo.isEmpty()) {
         	return;
     	}
-
-        Set<String> existingUserLinks = getExistingUserLinks(notesInfo);
+        Set<String> existingUserLinks = getExistingUserLinks();
         List<ContentDocumentLink> linksToInsert = getLinksToInsert(notesInfo, existingUserLinks);
         insertLinkRecords(linksToInsert);
     }
 
-    private List<ContentDocumentLink> getNotesInfo(Set<Id> linkedIds, Set<Id> authorIds) {
-        List<ContentDocumentLink> contentDocLinks = new List<ContentDocumentLink>();
-        for(ContentDocumentLink cdl: [SELECT Id, ContentDocumentId, LinkedEntityId, ContentDocument.CreatedById
+    private Map<Id, ContentDocumentLink> getNotesInfo(Set<Id> linkedIds, Set<Id> authorIds) {
+        Map<Id, ContentDocumentLink> notesMap = new Map<Id, ContentDocumentLink>();
+        Schema.SObjectType allowedObject = Schema.getGlobalDescribe().get(this.objectName);
+        for(ContentDocumentLink cdl: [SELECT Id, ContentDocumentId, ContentDocument.Title, LinkedEntityId, ContentDocument.CreatedById            
             FROM ContentDocumentLink
-            WHERE ContentDocument.CreatedById IN :authorIds
-            AND (LinkedEntityId IN :linkedIds OR LinkedEntityId IN :recipientIds) 
-        ]) {
-            if (cdl.LinkedEntityId.getSObjectType() == User.SObjectType) {
-                contentDocLinks.add(cdl);
+            WHERE (ContentDocument.CreatedById IN :authorIds
+            AND LinkedEntityId IN :linkedIds)
+            OR LinkedEntityId=:recipientIds]) {
+            if(cdl.LinkedEntityId.getSObjectType()==allowedObject) {
+                notesMap.put(cdl.Id, cdl);
+            } else {
+                existingLinkMap .put(cdl.Id, cdl);
             }
         }
-        return contentDocLinks;
+        return notesMap;
     }
 
     private String makeKey(Id noteId, Id userId) {
-        return String.valueOf(noteId) + '|' +
-               String.valueOf(userId);
+        return String.valueOf(noteId) + '|' + String.valueOf(userId);
     }
 
-    private Set<String> getExistingUserLinks(List<ContentDocumentLink> notesInfo) {
+    private Set<String> getExistingUserLinks() {
         Set<String> existingUserLinks = new Set<String>();
-        for (ContentDocumentLink cdl : notesInfo) {
-            if (cdl.LinkedEntityId.getSObjectType() == User.SObjectType) {
-                existingUserLinks.add(makeKey(cdl.ContentDocumentId, cdl.LinkedEntityId));
-            }
+        for (Id cdlRecId : existingLinkMap.keySet()) {
+            ContentDocumentLink cdl = existingLinkMap.get(cdlRecId);
+            existingUserLinks.add(makeKey(cdl.ContentDocumentId, cdl.LinkedEntityId));
         }
         return existingUserLinks;
     }
 
-    private List<ContentDocumentLink> getLinksToInsert(List<ContentDocumentLink> notesInfo, Set<String> existingUserLinks) {
+    private List<ContentDocumentLink> getLinksToInsert(Map<Id, ContentDocumentLink> notesInfo, Set<String> existingUserLinks) {
         List<ContentDocumentLink> linksToInsert = new List<ContentDocumentLink>();
-        for (ContentDocumentLink noteInfo : notesInfo) {
-            Id noteId = noteInfo.ContentDocumentId;
-            Id noteCreatorId = noteInfo.ContentDocument.CreatedById;
+        for (String title : notesInfo.keySet()) {
+            ContentDocumentLink cdl = notesInfo.get(title);
+            Id noteId = cdl.ContentDocumentId;
+            Id noteCreatorId = cdl.ContentDocument.CreatedById;
             if (!routesByAuthor.containsKey(noteCreatorId)) {
                 continue;
             }
@@ -163,5 +170,9 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
         System.debug('Successfully shared: ' + sharedCount);
         System.debug('Already shared/skipped: ' + skippedCount);
         System.debug('Failed: ' + failedCount);
+        if (!remainingRules.isEmpty()) {
+            String nextObject = new List<String>(remainingRules.keySet())[0];
+            Database.executeBatch(new NoteSharingBatch(remainingRules, nextObject), 200);
+        }
     }
 }

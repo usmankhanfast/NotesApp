@@ -23,9 +23,9 @@ public with sharing class NoteSharingService {
         if (rulesMap.isEmpty()) {
             throw new AuraHandledException('No active note sharing rules were found.');
         }
-        List<Id> jobIds = new List<Id>(); 
-        for(String objectName: rulesMap.keySet()) {
-            jobIds.add(Database.executeBatch(new NoteSharingBatch(rulesMap.get(objectName), objectName), 200));
+        List<String> objectNames = new List<String>(rulesMap.keySet());
+        if (!objectNames.isEmpty()) {
+            Database.executeBatch(new NoteSharingBatch(rulesMap, objectNames[0]), 200);
         }
         return 'Queued';
     }
