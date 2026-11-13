@@ -1,5 +1,5 @@
 public class NotesController {
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static List<NoteWrapper> getNotes(String searchKey) {
         String searchTerm = '%' + (searchKey == null ? '' : searchKey.trim()) +'%';
         List<ContentNote> notesRec = [
