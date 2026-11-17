@@ -1,6 +1,4 @@
 public with sharing class NoteSharingConfigController {
-    public static final String SHARES_WITH = 'Shares with';
-    public static final String SHARE_BOTH_WAYS = 'Share Both Ways';
     private static void checkAdminPermission() {
         if (!FeatureManagement.checkPermission('Manage_Note_Sharing')) {
             throw new AuraHandledException('You do not have permission to manage note sharing.');
@@ -61,6 +59,8 @@ public with sharing class NoteSharingConfigController {
         if (rows == null || rows.isEmpty()) {
             throw new AuraHandledException('Add at least one configuration before saving.');
         }
+        Set<String> sharingDirections = getFieldValues('Sharing_Direction__c');
+        Set<String> allowedObjects = getFieldValues('Object_Name__c');
         Set<Id> userIds = new Set<Id>();
         for (RuleRow row : rows) {
             if (row == null ||
@@ -73,10 +73,10 @@ public with sharing class NoteSharingConfigController {
             if (row.sourceUserId == row.targetUserId) {
                 throw new AuraHandledException('Source User and Target User must be different.');
             }
-            if (!new Set<String>{SHARES_WITH, SHARE_BOTH_WAYS}.contains(row.sharingDirection)) {
+            if (!sharingDirections.contains(row.sharingDirection)) {
                 throw new AuraHandledException('Invalid sharing direction.');
             }
-            if (!new Set<String>{'Account', 'Opportunity','Contact', 'Lead', 'Case'}.contains(row.objectName)) {
+            if (!allowedObjects.contains(row.objectName)) {
                 throw new AuraHandledException('Invalid object selection.');
             }
             userIds.add(row.sourceUserId);
@@ -187,5 +187,17 @@ public with sharing class NoteSharingConfigController {
                 }
             }
         }
+    }
+
+    public static Set<String> getFieldValues(String fieldName) {
+        Set<String> picklistVals = new Set<String>();
+        Schema.SObjectType sObjType = Schema.getGlobalDescribe().get('Note_Sharing_Rule__c');
+        Map<String, Schema.SObjectField> fieldMap = sObjType.getDescribe().fields.getMap();
+        Schema.SObjectField field = fieldMap.get(fieldName);
+        Schema.DescribeFieldResult fieldResult = field.getDescribe();
+        for(Schema.PicklistEntry pe: fieldResult.getPicklistValues()) {
+            picklistVals.add(pe.getLabel());
+        }
+        return picklistVals;
     }
 }
