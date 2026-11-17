@@ -13,14 +13,6 @@ public without sharing class NoteSharingBatch implements Database.Batchable<SObj
     private Integer sharedCount = 0;
     private Integer skippedCount = 0;
     private Integer failedCount = 0;
-    private static final Set<String> SUPPORTED_OBJECTS = new Set<String> 
-    {
-        'Account',
-        'Opportunity',
-        'Contact',
-        'Lead',
-        'Case'
-    };
 
     private class ShareRoute {
         Id recipientId;
